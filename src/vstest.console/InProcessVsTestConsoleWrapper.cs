@@ -108,22 +108,16 @@ internal class InProcessVsTestConsoleWrapper : IVsTestConsoleWrapper
         // the console parameters directly to the testhost process and make sure that at least the
         // testhost environment is predictable.
         IDictionary<string, string?> environmentVariableBaseline = new Dictionary<string, string?>();
-        if (consoleParameters.InheritEnvironmentVariables)
-        {
-            // This is needed because GetEnvironmentVariables() returns a non-generic dictionary
-            // and we need to convert it to a generic dictionary for our use-case.
-            foreach (DictionaryEntry? entry in _environmentVariableHelper.GetEnvironmentVariables())
-            {
-                environmentVariableBaseline[entry?.Key.ToString()!] = entry?.Value?.ToString();
-            }
-        }
 
         foreach (var pair in consoleParameters.EnvironmentVariables)
         {
             environmentVariableBaseline[pair.Key] = pair.Value;
         }
 
+        // When inheritance is enabled, keep the parent process environment intact and only
+        // forward explicit overrides to the child process.
         ProcessHelper.ExternalEnvironmentVariables = environmentVariableBaseline;
+        ProcessHelper.ReplaceInheritedEnvironmentVariables = !consoleParameters.InheritEnvironmentVariables;
 
         string someExistingFile = typeof(InProcessVsTestConsoleWrapper).Assembly.Location;
         using var manager = new VsTestConsoleProcessManager(someExistingFile);

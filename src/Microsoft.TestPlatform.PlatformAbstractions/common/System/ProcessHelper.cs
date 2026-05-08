@@ -48,6 +48,12 @@ public partial class ProcessHelper : IProcessHelper
     /// </summary>
     internal static IDictionary<string, string?>? ExternalEnvironmentVariables { get; set; }
 
+    /// <summary>
+    /// Gets or sets a value indicating whether inherited environment variables should be cleared
+    /// before applying <see cref="ExternalEnvironmentVariables"/>.
+    /// </summary>
+    internal static bool ReplaceInheritedEnvironmentVariables { get; set; }
+
     /// <inheritdoc/>
     public object LaunchProcess(string processPath, string? arguments, string? workingDirectory, IDictionary<string, string?>? envVariables, Action<object?, string?>? errorCallback, Action<object?>? exitCallBack, Action<object?, string?>? outputCallBack)
         => LaunchProcess(processPath, arguments, workingDirectory, envVariables, errorCallback, exitCallBack, outputCallBack, createNoNewWindow: true);
@@ -100,7 +106,11 @@ public partial class ProcessHelper : IProcessHelper
             // of all the variables that are set in the current process.
             if (ExternalEnvironmentVariables is not null)
             {
-                process.StartInfo.EnvironmentVariables.Clear();
+                if (ReplaceInheritedEnvironmentVariables)
+                {
+                    process.StartInfo.EnvironmentVariables.Clear();
+                }
+
                 foreach (var kvp in ExternalEnvironmentVariables)
                 {
                     if (kvp.Value is null)

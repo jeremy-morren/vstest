@@ -119,6 +119,7 @@ public class InProcessVsTestConsoleWrapperTests
         Assert.AreEqual(1, ProcessHelper.ExternalEnvironmentVariables?.Count);
         Assert.IsTrue(ProcessHelper.ExternalEnvironmentVariables?.ContainsKey(environmentVariableName));
         Assert.AreEqual("1", ProcessHelper.ExternalEnvironmentVariables?[environmentVariableName]);
+        Assert.IsTrue(ProcessHelper.ReplaceInheritedEnvironmentVariables);
     }
 
     [TestMethod]
@@ -147,13 +148,38 @@ public class InProcessVsTestConsoleWrapperTests
             new Mock<ITestPlatformEventSource>().Object,
             new());
 
-        Assert.AreEqual(3, ProcessHelper.ExternalEnvironmentVariables?.Count);
+        _mockEnvironmentVariableHelper.Verify(evh => evh.GetEnvironmentVariables(), Times.Never);
+        Assert.AreEqual(1, ProcessHelper.ExternalEnvironmentVariables?.Count);
         Assert.IsTrue(ProcessHelper.ExternalEnvironmentVariables?.ContainsKey(environmentVariableName1));
         Assert.AreEqual("1", ProcessHelper.ExternalEnvironmentVariables?[environmentVariableName1]);
-        Assert.IsTrue(ProcessHelper.ExternalEnvironmentVariables?.ContainsKey(environmentVariableName2));
-        Assert.AreEqual("1", ProcessHelper.ExternalEnvironmentVariables?[environmentVariableName2]);
-        Assert.IsTrue(ProcessHelper.ExternalEnvironmentVariables?.ContainsKey(environmentVariableName3));
-        Assert.AreEqual("1", ProcessHelper.ExternalEnvironmentVariables?[environmentVariableName3]);
+        Assert.IsFalse(ProcessHelper.ExternalEnvironmentVariables?.ContainsKey(environmentVariableName2) ?? false);
+        Assert.IsFalse(ProcessHelper.ExternalEnvironmentVariables?.ContainsKey(environmentVariableName3) ?? false);
+        Assert.IsFalse(ProcessHelper.ReplaceInheritedEnvironmentVariables);
+    }
+
+    [TestMethod]
+    public void InProcessWrapperConstructorShouldNotSnapshotInheritedEnvironmentVariablesWhenInheritanceIsEnabled()
+    {
+        const string environmentVariableName = "AAAAA";
+
+        var consoleParams = new ConsoleParameters();
+        consoleParams.EnvironmentVariables.Add(environmentVariableName, "1");
+        consoleParams.InheritEnvironmentVariables = true;
+
+        var _ = new InProcessVsTestConsoleWrapper(
+            consoleParams,
+            _mockEnvironmentVariableHelper.Object,
+            _mockRequestSender.Object,
+            _mockTestRequestManager.Object,
+            new Executor(_mockOutput.Object, new Mock<ITestPlatformEventSource>().Object, new ProcessHelper(), new PlatformEnvironment()),
+            new Mock<ITestPlatformEventSource>().Object,
+            new());
+
+        // The inherited environment can contain entries that do not round-trip through the
+        // managed wrapper, so the in-process path must not snapshot it.
+        _mockEnvironmentVariableHelper.Verify(evh => evh.GetEnvironmentVariables(), Times.Never);
+        Assert.AreEqual(1, ProcessHelper.ExternalEnvironmentVariables?.Count);
+        Assert.AreEqual("1", ProcessHelper.ExternalEnvironmentVariables?[environmentVariableName]);
     }
 
     [TestMethod]
